@@ -35,7 +35,7 @@ TEMPLATES = [{
         "django.contrib.messages.context_processors.messages",
     ]},
 }]
-WSGI_APPLICATION = "mauzo.wsgi.application"
+WSGI_APPLICATION = "wsgi.application"
 
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
