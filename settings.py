@@ -26,7 +26,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
-ROOT_URLCONF = "mauzo.urls"
+ROOT_URLCONF = "urls"
 TEMPLATES = [{
     "BACKEND":"django.template.backends.django.DjangoTemplates",
     "DIRS":[BASE_DIR / "templates"], "APP_DIRS":True,
