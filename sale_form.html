@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}New Sale | Mauzo PRO{% endblock %}
+{% block heading %}New Sale / POS{% endblock %}
+{% block content %}
+<form method="post" id="sale-form">
+{% csrf_token %}
+<div class="pos-hero">
+  <div><div class="eyebrow">FAST CHECKOUT</div><h2>Make a Sale</h2><p>Choose products, enter the customer discount in TZS, select payment, and finish.</p></div>
+  <div class="pos-default"><span>Default payment</span><strong>Cash</strong><small>Change when needed</small></div>
+</div>
+<div class="pos-top-grid">
+  <div class="panel compact-panel"><label>Customer</label><select name="customer" id="customer">{% for c in customers %}<option value="{{ c.id }}"{% if c.name == 'Walk-in Customer' %} selected{% endif %}>{{ c.name }}{% if c.phone %} — {{ c.phone }}{% endif %}</option>{% endfor %}</select><small class="help">Walk-in Customer is selected automatically.</small></div>
+  <div class="panel compact-panel payment-panel"><label>Payment Method</label><select name="payment_method" id="payment_method"><option value="cash" selected>Cash</option><option value="mobile">Mobile Money</option><option value="card">Card</option><option value="bank">Bank Transfer</option><option value="mixed">Mixed Payment</option></select><div id="payment-extra" class="payment-extra hidden"><label id="reference-label">Transaction / Reference No.</label><input name="payment_reference" id="payment_reference" placeholder="Enter reference number"><small class="help">Required for non-cash payments.</small></div></div>
+</div>
+<div class="panel">
+  <div class="section-head"><div><h2>Select Products</h2><p class="muted">Enter only the quantities you want to sell.</p></div><div class="selected-count" id="selected-count">0 items</div></div>
+  <div class="sale-products"><table><thead><tr><th>Product</th><th>SKU</th><th>Price</th><th>Stock</th><th class="right">Quantity</th></tr></thead><tbody>
+  {% for p in products %}<tr class="product-row" data-price="{{ p.price }}"><td><strong>{{ p.name }}</strong></td><td>{{ p.sku }}</td><td>{{ p.price|floatformat:2 }} TZS</td><td><span class="stock-pill{% if p.low_stock %} low{% endif %}">{{ p.stock }}</span></td><td class="right"><input class="qty" type="number" min="0" max="{{ p.stock }}" name="qty_{{ p.id }}" value="0" inputmode="numeric" aria-label="Quantity for {{ p.name }}"></td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+<div class="pos-summary-grid">
+  <div class="panel">
+    <div class="section-head"><div><h2>Discount</h2><p class="muted">Enter the exact amount to give the customer.</p></div><span class="limit-note">Seller limit {{ discount_limit }}%</span></div>
+    <label>Discount Amount</label><div class="discount-input"><input id="discount_amount" type="number" name="discount_amount" min="0" step="0.01" value="0" inputmode="decimal" placeholder="0"><span>TZS</span></div>
+    <div class="quick-discounts"><button type="button" data-discount="0">None</button><button type="button" data-discount="500">500</button><button type="button" data-discount="1000">1,000</button></div>
+    <div class="summary-lines"><div><span>Subtotal</span><strong id="subtotal">0.00 TZS</strong></div><div><span>Discount</span><strong id="discount-value">0.00 TZS</strong></div><div><span>Tax ({{ settings.tax_rate }}%)</span><strong id="tax-value">0.00 TZS</strong></div></div>
+  </div>
+  <div class="panel total-panel"><div class="total-label">AMOUNT TO PAY</div><div class="grand-total" id="grand-total">0.00 <small>TZS</small></div><label>Amount Paid</label><input id="amount_paid" type="number" name="amount_paid" min="0" step="0.01" placeholder="Exact total is automatic" inputmode="decimal"><div class="change-box"><span>Change</span><strong id="change">0.00 TZS</strong></div><button class="btn success complete-btn" type="submit">✓ Complete Sale</button><div class="safe-note">Stock, discount, payment and seller activity are recorded automatically.</div></div>
+</div>
+<div class="panel compact-notes"><label>Notes <span class="optional">optional</span></label><textarea name="notes" rows="2" placeholder="Optional note about this sale..."></textarea></div>
+</form>
+<script>
+(function(){
+ const taxRate=Number('{{ settings.tax_rate|default:"0" }}')||0, discount=document.getElementById('discount_amount'), paid=document.getElementById('amount_paid'), method=document.getElementById('payment_method'), extra=document.getElementById('payment-extra'), ref=document.getElementById('payment_reference'), subtotalEl=document.getElementById('subtotal'), discountEl=document.getElementById('discount-value'), taxEl=document.getElementById('tax-value'), totalEl=document.getElementById('grand-total'), changeEl=document.getElementById('change'), countEl=document.getElementById('selected-count'), qtyInputs=[...document.querySelectorAll('.qty')];
+ let paidManuallyChanged=false;
+ const money=n=>(Number(n)||0).toLocaleString('en-TZ',{minimumFractionDigits:2,maximumFractionDigits:2})+' TZS';
+ function calculate(){let subtotal=0,count=0;qtyInputs.forEach(i=>{const row=i.closest('.product-row'),q=Math.max(0,Number(i.value)||0);subtotal+=(Number(row.dataset.price)||0)*q;if(q>0)count++});let disc=Math.max(0,Number(discount.value)||0);if(disc>subtotal){disc=subtotal;discount.value=subtotal?subtotal.toFixed(2):'0'}let taxable=Math.max(0,subtotal-disc),tax=taxable*taxRate/100,total=Math.max(0,taxable+tax);subtotalEl.textContent=money(subtotal);discountEl.textContent=money(disc);taxEl.textContent=money(tax);totalEl.innerHTML=Number(total).toLocaleString('en-TZ',{minimumFractionDigits:2,maximumFractionDigits:2})+' <small>TZS</small>';if(!paidManuallyChanged||!paid.value)paid.value=total?total.toFixed(2):'';changeEl.textContent=money(Math.max(0,(Number(paid.value)||0)-total));countEl.textContent=count+(count===1?' item':' items')}
+ function paymentUI(){const v=method.value;const needsRef=['mobile','card','bank'].includes(v);extra.classList.toggle('hidden',!needsRef);ref.required=needsRef;if(v==='mobile')document.getElementById('reference-label').textContent='Mobile Money Reference';else if(v==='card')document.getElementById('reference-label').textContent='Card Reference';else if(v==='bank')document.getElementById('reference-label').textContent='Bank Transfer Reference';}
+ qtyInputs.forEach(i=>i.addEventListener('input',calculate));discount.addEventListener('input',calculate);paid.addEventListener('input',()=>{paidManuallyChanged=paid.value!=='';calculate()});method.addEventListener('change',paymentUI);document.querySelectorAll('[data-discount]').forEach(b=>b.addEventListener('click',()=>{discount.value=b.dataset.discount;calculate()}));document.getElementById('sale-form').addEventListener('submit',e=>{if(!qtyInputs.some(i=>(Number(i.value)||0)>0)){e.preventDefault();alert('Please select at least one product quantity.');return}const total=Number(totalEl.textContent.replace(/[^0-9.]/g,''))||0,paidValue=paid.value===''?total:Number(paid.value);if(paidValue<total){e.preventDefault();alert('Amount paid cannot be less than the total.')}});paymentUI();calculate();
+})();
+</script>
+{% endblock %}
